@@ -1,0 +1,19 @@
+{
+  "problem": "periodic heat equation u_t = nu u_xx on [0,1), operator u(.,0) -> u(.,T)",
+  "nu": 0.01,
+  "T": 1.0,
+  "train_samples": 1000,
+  "train_grid": 64,
+  "epochs": 300,
+  "seed": 0,
+  "params": 74209,
+  "train_time_s": 252.2,
+  "final_train_rel_l2": 0.0003681067028082907,
+  "test_rel_l2_by_grid": {
+    "64": 0.0004934951510552256,
+    "128": 0.0005050421811079598,
+    "256": 0.0005132561417231258
+  },
+  "reference": "exact Fourier-space solution (no solver error)",
+  "test_set": "200 unseen random initial conditions (seed 1234)"
+}

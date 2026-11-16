@@ -1,0 +1,19 @@
+{
+  "case": "MMS_Cavity",
+  "method": "Method of Manufactured Solutions (Verification Only)",
+  "mesh": {
+    "nx": 65,
+    "ny": 65
+  },
+  "note": "MMS is used to verify code correctness. R\u00b2 is not a validation metric.",
+  "metrics": {
+    "l2_u_relative": 0.11522583645408155,
+    "l2_v_relative": 0.11791767512388614,
+    "l2_relative_mean": 0.11657175578898385,
+    "r2_u": 0.9867230066134529,
+    "r2_v": 0.9860954218933732,
+    "r2_mean": 0.9864092142534131,
+    "max_error_u": 0.039262377064363266,
+    "max_error_v": 0.038366555484593695
+  }
+}

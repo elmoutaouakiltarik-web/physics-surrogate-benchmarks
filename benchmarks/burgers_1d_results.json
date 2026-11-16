@@ -1,0 +1,56 @@
+{
+  "case": "Burgers1D",
+  "pde": "u_t + u*u_x = nu*u_xx",
+  "nu": 0.003183098861837907,
+  "domain": {
+    "x": [
+      -1,
+      1
+    ],
+    "t": [
+      0,
+      1
+    ]
+  },
+  "network": {
+    "layers": [
+      2,
+      64,
+      64,
+      64,
+      64,
+      1
+    ],
+    "activation": "tanh"
+  },
+  "training": {
+    "n_colloc": 10000,
+    "n_ic": 100,
+    "n_bc": 100,
+    "epochs_adam": 10000,
+    "epochs_lbfgs": 3000,
+    "use_rar": true,
+    "rar_interval": 2000
+  },
+  "system": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 126 Stepping 5, GenuineIntel",
+    "python": "3.11.9",
+    "torch": "2.12.0+cpu",
+    "device": "cpu"
+  },
+  "metrics": {
+    "final_loss": 0.005231380928307772,
+    "elapsed_time_sec": 1590.253841638565,
+    "test_time": 0.5
+  },
+  "validation": {
+    "reference": "Cole-Hopf exact solution",
+    "n_test_points": 200,
+    "l2_relative_error": 0.025395229860477316,
+    "max_absolute_error": 0.16735051849498928,
+    "r2_score": 0.9993550823003334
+  },
+  "weights_file": "weights/burgers_pinn.pt",
+  "weights_size_mb": 0.05263233184814453
+}

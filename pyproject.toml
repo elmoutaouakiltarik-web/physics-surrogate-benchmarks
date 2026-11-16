@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "physics-surrogate-benchmarks"
+version = "0.1.0"
+description = "Reproducible benchmark of Physics-Informed Neural Networks (PINNs) and Fourier Neural Operators (FNO) on classical CFD problems"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Tarik El Moutaouakil", email = "elmoutaouakiltarik-web@users.noreply.github.com" }
+]
+requires-python = ">=3.10"
+keywords = ["surrogate-modeling", "physics-informed", "neural-networks", "cfd", "benchmark"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.21.0",
+    "torch>=2.0.0",
+    "matplotlib>=3.5.0",
+    "scipy>=1.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=3.0",
+    "ruff>=0.1.0",
+]
+gpu = [
+    "torch[cuda11]>=2.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/tarik-el-m/physics-surrogate-benchmarks"
+Documentation = "https://github.com/tarik-el-m/physics-surrogate-benchmarks#readme"
+"Bug Tracker" = "https://github.com/tarik-el-m/physics-surrogate-benchmarks/issues"
+
+[tool.setuptools]
+packages = ["physics_surrogates"]
+package-dir = { "" = "src" }
+
+[tool.setuptools.package-data]
+physics_surrogates = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+python_files = "test_*.py"
+addopts = "--cov=src/physics_surrogates --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/physics_surrogates"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+precision = 2
+
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Relaxed for research code
+ignore_missing_imports = true

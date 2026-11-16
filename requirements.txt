@@ -1,0 +1,13 @@
+# Core dependencies for physics-surrogate-benchmarks
+numpy>=1.21.0
+torch>=2.0.0
+matplotlib>=3.5.0
+scipy>=1.7.0
+
+# Optional: GPU support (uncomment if using CUDA)
+# torch[cuda11]>=2.0.0
+
+# Development dependencies (optional)
+pytest>=7.0
+pytest-cov>=3.0
+ruff>=0.1.0

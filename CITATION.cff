@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: "Physics Surrogate Benchmarks"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: "El Moutaouakil"
+    given-names: "Tarik"
+    email: "elmoutaouakiltarik-web@users.noreply.github.com"
+repository-code: "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks"
+url: "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks"
+abstract: "Reproducible benchmarks for Physics-Informed Neural Networks (PINNs) and Fourier Neural Operators (FNO) on classical CFD problems including lid-driven cavity and manufactured solution verification."
+keywords:
+  - surrogate-modeling
+  - physics-informed-neural-networks
+  - fourier-neural-operators
+  - cfd
+  - computational-fluid-dynamics
+  - deep-learning
+  - benchmark
+license: MIT
+version: 0.1.0
+date-released: 2024-11-15
