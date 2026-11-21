@@ -1,0 +1,59 @@
+{
+  "problem": "periodic viscous Burgers u_t + u u_x = nu u_xx on [0,1), operator u(.,0) -> u(.,T)",
+  "nu": 0.02,
+  "T": 0.5,
+  "ic_amplitude": 2.0,
+  "train_samples": 1000,
+  "train_grid": 64,
+  "epochs": 200,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "test_set": "200 unseen random initial conditions (seed 1234), reference recomputed with the spectral solver at each test grid",
+  "params": {
+    "fno": 74209,
+    "mlp": 164672
+  },
+  "test_rel_l2": {
+    "fno_by_grid": {
+      "64": {
+        "mean": 0.006639224362819288,
+        "std": 0.000290417041334813
+      },
+      "128": {
+        "mean": 0.006617633683430203,
+        "std": 0.0002682897709417988
+      },
+      "256": {
+        "mean": 0.006612638319897721,
+        "std": 0.0002634499632335234
+      }
+    },
+    "mlp_train_grid": {
+      "mean": 0.06742871363273717,
+      "std": 0.0018685214195851175
+    },
+    "mlp_other_grids": "not applicable (fixed input size)"
+  },
+  "baselines_rel_l2": {
+    "64": {
+      "identity_u0_as_prediction": 4.395990069880352,
+      "linear_heat_theory_ignoring_advection": 2.1729131324458644
+    },
+    "128": {
+      "identity_u0_as_prediction": 4.396038332910424,
+      "linear_heat_theory_ignoring_advection": 2.1729436459713503
+    },
+    "256": {
+      "identity_u0_as_prediction": 4.396037475557415,
+      "linear_heat_theory_ignoring_advection": 2.172943081018373
+    }
+  },
+  "train_time_s_per_seed": {
+    "fno": 196.5,
+    "mlp": 25.3
+  },
+  "reference": "pseudo-spectral IFRK4 solver (numerical); resolution check: grid-64 vs grid-256 reference differ by ~2e-3 relative (max-norm)"
+}

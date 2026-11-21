@@ -13,6 +13,7 @@ reported error is the error of the model and not the error of a solver:
 |---|---|---|---|
 | **PINN** | 1D viscous Burgers, ν = 0.01/π | Cole–Hopf exact solution | rel. L2 **2.54e-2**, R² **0.99936** at t = 0.5 |
 | **FNO** (Fourier Neural Operator) | periodic heat operator u(·,0) → u(·,T) | exact Fourier-space solution | rel. L2 **4.93e-4** on the training grid, **5.13e-4** zero-shot on a 4× finer grid |
+| **FNO vs MLP** | *nonlinear* periodic Burgers operator (ν = 0.02, T = 0.5) | validated pseudo-spectral solver (numerical) | FNO rel. L2 **6.6e-3 ± 0.3e-3** (3 seeds), unchanged zero-shot on a 4× finer grid; dense MLP **6.7e-2** |
 
 Everything runs on a laptop CPU. The committed runs were produced on an Intel Ice Lake
 mobile CPU, Windows 10, Python 3.11.9, PyTorch 2.12.0+cpu; raw outputs are in
@@ -141,10 +142,51 @@ field: the velocity is derived from the stream function
 walls. Gaussian noise (σ = 0.01) is added and the metrics are recomputed. This is a
 verification artifact, **not** a model result, and it is never quoted in the table above.
 
+## 5. Nonlinear operator learning: FNO vs dense MLP on Burgers
+
+The heat task is linear. Here the operator is nonlinear (shock-forming advection):
+
+$$u_t + u\,u_x = 
+u\,u_{xx}\ 	ext{on } [0,1)\ 	ext{periodic},\quad 
+u = 0.02,\ T = 0.5,$$
+
+with initial conditions of amplitude 2. There is no closed form for random initial
+conditions, so the reference is a pseudo-spectral solver (`src/physics_surrogates/solvers.py`:
+2/3-rule dealiasing, integrating-factor RK4). Because it is numerical, `tests/test_solvers.py`
+verifies it: RK4-order time convergence, spatial convergence, conservation of the mean,
+non-growing energy, and agreement with the exact heat solution in the linear limit (the gap
+scales as O(amplitude)). Grid-64 and grid-256 references differ by about 2e-3 relative
+(max-norm), well below the model errors below.
+
+Setup: 1,000 training pairs on a 64-point grid, 200 epochs, relative-L2 loss, 3 seeds
+(different training data and initialisation), 200 fixed unseen test initial conditions. The
+MLP (3×256 hidden, 164,672 parameters) is larger than the FNO (74,209) and only runs on the
+64-point grid.
+
+| Model | Test grid 64 | Grid 128 (zero-shot) | Grid 256 (zero-shot) |
+|---|---|---|---|
+| FNO1d | 6.64e-3 ± 2.9e-4 | 6.62e-3 ± 2.7e-4 | 6.61e-3 ± 2.6e-4 |
+| Dense MLP | 6.74e-2 ± 1.9e-3 | n/a (fixed input size) | n/a |
+| Heat theory (ignores advection) | 2.17 | 2.17 | 2.17 |
+| Identity (predict u(·,0)) | 4.40 | 4.40 | 4.40 |
+
+Mean ± std of the relative L2 error over seeds; the last two rows are reference points,
+not trained models.
+
+```bash
+python scripts/benchmark_fno_burgers.py   # ~12 min CPU, writes benchmarks/fno_burgers_results.json
+```
+
+**Limits.** 1D, periodic, smooth random initial conditions, one (ν, T) pair, three seeds, CPU
+only. The error is measured against a numerical reference, not an exact solution. The dense
+MLP is a simple baseline and was not tuned. Resolution invariance is shown for finer grids
+only; this does not cover non-periodic domains, fronts sharper than the 64-point grid can
+resolve, or 2D/3D flows.
+
 ## Reproducibility
 
-- **Seeds.** One seeded run per number. Treat the third significant digit as noise; no
-  multi-seed statistics yet.
+- **Seeds.** Sections 1-4 are one seeded run per number: treat the third significant digit
+  as noise. Section 5 reports mean ± std over 3 seeds.
 - **Artifacts.** `benchmarks/*.json` holds the configuration, hardware and metrics of
   each run; the README tables are copies of those files.
 - **Weights.** `weights/` holds the exact weights behind the published numbers.
@@ -165,10 +207,13 @@ src/physics_surrogates/
   reference.py           Cole-Hopf exact solution + independent spectral solver
   models/pinns.py        BurgersPINN (Adam + L-BFGS + RAR)
   models/fno.py          SpectralConv1d, FNO1d, exact heat operator, train/eval
+  models/burgers_operator.py  nonlinear Burgers dataset, MLP baseline, train/eval
+  solvers.py             pseudo-spectral Burgers solver for random initial conditions
   datasets/ghia_cavity.py  published Ghia tables, mesh/BC/MMS helpers, centreline errors
 scripts/
   run_benchmark_real.py    Burgers PINN + MMS check (single canonical entry point)
   benchmark_fno_heat.py    FNO heat operator
+  benchmark_fno_burgers.py FNO vs MLP on nonlinear Burgers (3 seeds)
   make_figures.py          all figures from committed artifacts
 benchmarks/                JSON results (committed)
 weights/                   trained weights (committed)
