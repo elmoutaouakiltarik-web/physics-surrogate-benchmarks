@@ -196,7 +196,7 @@ resolve, or 2D/3D flows.
   from the committed artifacts, with no training.
 
 ```bash
-pytest -q        # 70 tests: models, datasets, reference cross-checks, artifact consistency
+pytest -q        # 82 tests: models, datasets, solvers, reference cross-checks, artifact consistency
 ruff check src tests scripts
 ```
 
