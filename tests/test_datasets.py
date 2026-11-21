@@ -1,185 +1,197 @@
-"""
-Tests for benchmark datasets.
-"""
-import sys
-from pathlib import Path
+"""Tests for the cavity benchmark data and helpers."""
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 from physics_surrogates.datasets.ghia_cavity import (
+    AVAILABLE_REYNOLDS,
+    available_reynolds,
     cavity_bc_mask,
     cavity_mms_manufactured_solution,
+    cavity_mms_streamfunction,
     evaluate_cavity_solution,
     generate_cavity_mesh,
     get_ghia_reference,
+    ghia_centerline_errors,
 )
 
 
 class TestGhiaReference:
-    """Test Ghia et al. reference data."""
+    """The tables must be the published ones, not a smoothed lookalike."""
 
-    def test_ghia_re100(self):
-        """Test Ghia reference for Re=100."""
-        ref = get_ghia_reference(100)
-        assert ref.re == 100
-        assert len(ref.y_probe) == 10
-        assert len(ref.u_center) == 10
-        assert ref.u_max > 0
-        assert ref.v_max > 0
+    @pytest.mark.parametrize("re", AVAILABLE_REYNOLDS)
+    def test_grids_and_lengths(self, re):
+        ref = get_ghia_reference(re)
+        assert ref.re == re
+        assert len(ref.y_probe) == len(ref.u_center) == 17
+        assert len(ref.x_probe) == len(ref.v_center) == 17
+        # Ghia's probes are non-uniform, clustered at the walls.
+        assert ref.y_probe[0] == 1.0 and ref.y_probe[-1] == 0.0
+        assert np.all(np.diff(ref.y_probe) < 0)
 
-    def test_ghia_re400(self):
-        """Test Ghia reference for Re=400."""
-        ref = get_ghia_reference(400)
-        assert ref.re == 400
-        assert len(ref.y_probe) > 0
+    @pytest.mark.parametrize(
+        ("re", "y_at_min", "u_min"),
+        [(100, 0.4531, -0.21090), (400, 0.2813, -0.32726), (1000, 0.1719, -0.38289)],
+    )
+    def test_published_minimum_of_u(self, re, y_at_min, u_min):
+        ref = get_ghia_reference(re)
+        assert ref.u_center.min() == pytest.approx(u_min, abs=1e-5)
+        assert ref.y_probe[int(np.argmin(ref.u_center))] == pytest.approx(y_at_min)
 
-    def test_ghia_re1000(self):
-        """Test Ghia reference for Re=1000."""
-        ref = get_ghia_reference(1000)
-        assert ref.re == 1000
+    @pytest.mark.parametrize(
+        ("re", "u_near_lid", "v_peak"),
+        [(100, 0.84123, 0.17527), (400, 0.75837, 0.30203), (1000, 0.65928, 0.37095)],
+    )
+    def test_published_extrema(self, re, u_near_lid, v_peak):
+        ref = get_ghia_reference(re)
+        assert ref.u_center[1] == pytest.approx(u_near_lid, abs=1e-5)
+        assert ref.v_center.max() == pytest.approx(v_peak, abs=1e-5)
 
-    def test_ghia_invalid_re(self):
-        """Test error on invalid Reynolds number."""
+    def test_lid_and_wall_values(self):
+        for re in AVAILABLE_REYNOLDS:
+            ref = get_ghia_reference(re)
+            assert ref.u_center[0] == pytest.approx(1.0)  # moving lid
+            assert ref.u_center[-1] == 0.0  # no-slip bottom
+            assert ref.v_center[0] == 0.0 and ref.v_center[-1] == 0.0
+
+    def test_backflow_appears_with_reynolds(self):
+        """Deeper cavities at higher Re produce a stronger recirculation."""
+        minima = [get_ghia_reference(re).u_center.min() for re in AVAILABLE_REYNOLDS]
+        assert minima == sorted(minima, reverse=True)
+
+    @pytest.mark.parametrize("re", [999, 100.5, 50])
+    def test_invalid_reynolds(self, re):
         with pytest.raises(ValueError):
-            get_ghia_reference(999)
+            get_ghia_reference(re)
 
-    def test_ghia_reference_bounds(self):
-        """Test that reference velocities are physically reasonable."""
-        ref = get_ghia_reference(100)
-        # u should be in [-1, 1] (normalized by lid velocity)
-        assert np.all(np.abs(ref.u_center) <= 1.5)
-        # v should be smaller than u
-        assert np.max(np.abs(ref.v_center)) < np.max(np.abs(ref.u_center))
+    def test_available_reynolds_helper(self):
+        assert available_reynolds() == AVAILABLE_REYNOLDS
 
 
 class TestCavityMesh:
-    """Test cavity mesh generation."""
-
     def test_mesh_generation(self):
-        """Test mesh grid generation."""
         x, y, X, Y = generate_cavity_mesh(nx=65, ny=65)
-        assert len(x) == 65
-        assert len(y) == 65
-        assert X.shape == (65, 65)
-        assert Y.shape == (65, 65)
+        assert len(x) == len(y) == 65
+        assert X.shape == Y.shape == (65, 65)
 
     def test_mesh_bounds(self):
-        """Test mesh is on unit square."""
-        x, y, X, Y = generate_cavity_mesh(nx=50, ny=50)
-        assert np.min(x) == 0.0
-        assert np.max(x) == 1.0
-        assert np.min(y) == 0.0
-        assert np.max(y) == 1.0
+        x, y, _, _ = generate_cavity_mesh(nx=50, ny=50)
+        assert x[0] == y[0] == 0.0
+        assert x[-1] == y[-1] == 1.0
 
-    def test_mesh_orthogonal(self):
-        """Test mesh coordinates are orthogonal (structured grid)."""
-        x, y, X, Y = generate_cavity_mesh(nx=20, ny=30)
-        # Check that X varies only along columns (constant along rows)
-        assert np.allclose(X[:, 0], X[:, 1])  # Same X values in all columns
-        # Check that Y varies only along rows (constant along columns)
-        assert np.allclose(Y[0, :], Y[1, :])  # Same Y values in all rows
+    def test_mesh_is_a_structured_grid(self):
+        _, _, X, Y = generate_cavity_mesh(nx=20, ny=30)
+        # X is constant along y, Y is constant along x.
+        assert np.allclose(X[:, [0]], X)
+        assert np.allclose(Y[[0], :], Y)
 
 
 class TestCavityBC:
-    """Test boundary condition masks."""
-
-    def test_bc_masks(self):
-        """Test BC mask generation."""
+    def test_masks_cover_each_wall_once(self):
         top, bottom, left, right = cavity_bc_mask(nx=65, ny=65)
-        assert top.sum() == 65  # Full top row
-        assert bottom.sum() == 65  # Full bottom row
-        assert left.sum() == 65  # Full left column
-        assert right.sum() == 65  # Full right column
+        assert top.sum() == bottom.sum() == left.sum() == right.sum() == 65
+        assert top[-1, :].all() and bottom[0, :].all()
+        assert left[:, 0].all() and right[:, -1].all()
 
-    def test_bc_no_overlap(self):
-        """Test BC masks don't overlap incorrectly."""
-        top, bottom, left, right = cavity_bc_mask(nx=65, ny=65)
-        # Corners might overlap, but interior should be distinct
-        interior_top = top[1:-1, 1:-1]
-        interior_bottom = bottom[1:-1, 1:-1]
-        assert not np.any(interior_top & interior_bottom)
+    def test_interior_is_unmasked(self):
+        top, bottom, left, right = cavity_bc_mask(nx=33, ny=33)
+        interior = np.s_[1:-1, 1:-1]
+        assert not (top & bottom)[interior].any()
+        assert not (left & right)[interior].any()
 
 
 class TestMMS:
-    """Test Method of Manufactured Solutions."""
-
-    def test_mms_fields(self):
-        """Test MMS field generation."""
-        x, y, X, Y = generate_cavity_mesh(nx=33, ny=33)
+    def test_field_shapes(self):
+        _, _, X, Y = generate_cavity_mesh(nx=33, ny=33)
         u, v, p = cavity_mms_manufactured_solution(X, Y)
-        assert u.shape == (33, 33)
-        assert v.shape == (33, 33)
-        assert p.shape == (33, 33)
+        assert u.shape == v.shape == p.shape == (33, 33)
 
-    def test_mms_boundary_conditions(self):
-        """Test MMS satisfies cavity BCs (u=v=0 on walls)."""
-        x, y, X, Y = generate_cavity_mesh(nx=20, ny=20)
-        u, v, p = cavity_mms_manufactured_solution(X, Y)
-        # Bottom wall (y=0): u=0, v=0
-        assert np.allclose(u[0, :], 0, atol=1e-10)
-        assert np.allclose(v[0, :], 0, atol=1e-10)
-        # Top wall (y=1): u=0, v=0
-        assert np.allclose(u[-1, :], 0, atol=1e-10)
-        assert np.allclose(v[-1, :], 0, atol=1e-10)
-        # Left wall (x=0): u=0, v=0
-        assert np.allclose(u[:, 0], 0, atol=1e-10)
-        assert np.allclose(v[:, 0], 0, atol=1e-10)
-        # Right wall (x=1): u=0, v=0
-        assert np.allclose(u[:, -1], 0, atol=1e-10)
-        assert np.allclose(v[:, -1], 0, atol=1e-10)
+    def test_no_slip_on_all_four_walls(self):
+        _, _, X, Y = generate_cavity_mesh(nx=21, ny=21)
+        u, v, _ = cavity_mms_manufactured_solution(X, Y)
+        for edge in (u[0, :], u[-1, :], u[:, 0], u[:, -1], v[0, :], v[-1, :], v[:, 0], v[:, -1]):
+            assert np.allclose(edge, 0.0, atol=1e-12)
 
-    def test_mms_continuity(self):
-        """Test MMS fields are smooth (no sharp discontinuities)."""
-        x, y, X, Y = generate_cavity_mesh(nx=65, ny=65)
-        u, v, p = cavity_mms_manufactured_solution(X, Y)
-        # Check gradients are finite
-        u_grad = np.gradient(u)
-        v_grad = np.gradient(v)
-        assert np.all(np.isfinite(u_grad))
-        assert np.all(np.isfinite(v_grad))
+    def test_is_divergence_free(self):
+        """Central differences on the interior must reproduce div(u) = 0."""
+        x, y, X, Y = generate_cavity_mesh(nx=257, ny=257)
+        u, v, _ = cavity_mms_manufactured_solution(X, Y)
+        div = np.gradient(u, x, axis=0) + np.gradient(v, y, axis=1)
+        interior = div[1:-1, 1:-1]
+        scale = np.abs(np.gradient(u, x, axis=0)).max()
+        assert np.abs(interior).max() < 5e-4 * scale
+
+    def test_streamfunction_matches_velocity(self):
+        x, y, X, Y = generate_cavity_mesh(nx=257, ny=257)
+        u, v, _ = cavity_mms_manufactured_solution(X, Y)
+        psi = cavity_mms_streamfunction(X, Y)
+        # Central differences on a smooth field: agreement to truncation error.
+        np.testing.assert_allclose(np.gradient(psi, y, axis=1), u, atol=5e-3)
+        np.testing.assert_allclose(-np.gradient(psi, x, axis=0), v, atol=5e-3)
 
 
 class TestEvaluation:
-    """Test solution evaluation metrics."""
+    def test_perfect_match(self):
+        rng = np.random.default_rng(0)
+        u = rng.standard_normal((40, 40))
+        v = rng.standard_normal((40, 40))
+        metrics = evaluate_cavity_solution(u, v, u, v)
+        assert metrics["l2_u_relative"] < 1e-12
+        assert metrics["l2_v_relative"] < 1e-12
+        assert metrics["r2_u"] > 0.999999
 
-    def test_evaluation_perfect_match(self):
-        """Test evaluation with perfect match."""
-        u_ref = np.random.randn(100, 100)
-        v_ref = np.random.randn(100, 100)
-        metrics = evaluate_cavity_solution(u_ref, v_ref, u_ref, v_ref)
-        assert metrics["l2_u_relative"] < 1e-10
-        assert metrics["l2_v_relative"] < 1e-10
-        assert metrics["r2_u"] > 0.9999
-        assert metrics["r2_v"] > 0.9999
-
-    def test_evaluation_with_noise(self):
-        """Test evaluation with noisy prediction."""
-        np.random.seed(42)
-        u_ref = np.random.randn(50, 50)
-        v_ref = np.random.randn(50, 50)
-        u_pred = u_ref + 0.1 * np.random.randn(50, 50)
-        v_pred = v_ref + 0.1 * np.random.randn(50, 50)
-
+    def test_known_noise_level(self):
+        rng = np.random.default_rng(42)
+        u_ref = rng.standard_normal((50, 50))
+        v_ref = rng.standard_normal((50, 50))
+        u_pred = u_ref + 0.1 * rng.standard_normal((50, 50))
+        v_pred = v_ref + 0.1 * rng.standard_normal((50, 50))
         metrics = evaluate_cavity_solution(u_pred, v_pred, u_ref, v_ref)
         assert 0 < metrics["l2_u_relative"] < 0.2
-        assert 0 < metrics["l2_v_relative"] < 0.2
         assert 0.8 < metrics["r2_u"] < 1.0
-        assert 0.8 < metrics["r2_v"] < 1.0
+        assert metrics["max_error_u"] > 0
 
-    def test_evaluation_bad_prediction(self):
-        """Test evaluation with poor prediction."""
-        u_ref = np.ones((50, 50))
-        v_ref = np.ones((50, 50))
-        u_pred = np.zeros((50, 50))
-        v_pred = np.zeros((50, 50))
-
-        metrics = evaluate_cavity_solution(u_pred, v_pred, u_ref, v_ref)
-        assert metrics["l2_u_relative"] > 0.5
+    def test_poor_prediction(self):
+        u_ref = np.ones((20, 20))
+        zeros = np.zeros((20, 20))
+        metrics = evaluate_cavity_solution(zeros, zeros, u_ref, u_ref)
+        assert metrics["l2_u_relative"] == pytest.approx(1.0)
         assert metrics["r2_u"] < 0
 
+    def test_missing_reference_returns_empty(self):
+        assert evaluate_cavity_solution(np.zeros((5, 5)), np.zeros((5, 5))) == {}
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    def test_shape_mismatch_raises(self):
+        with pytest.raises(ValueError):
+            evaluate_cavity_solution(np.zeros((5, 5)), np.zeros((5, 5)), np.zeros((5, 6)), np.zeros((5, 5)))
+
+
+class TestGhiaComparison:
+    def test_exact_profile_field_has_near_zero_error(self):
+        """A field built from the Ghia profiles must score ~0 on both centrelines.
+
+        The residual is grid interpolation only: the field is piecewise linear
+        between probes, so a 401-point grid reproduces it to well under a percent.
+        """
+        x, y, _, _ = generate_cavity_mesh(nx=401, ny=401)
+        ref = get_ghia_reference(400)
+        # Ghia lists the probes from the lid downwards, so reverse before interp.
+        u_line = np.interp(y, ref.y_probe[::-1], ref.u_center[::-1])
+        v_line = np.interp(x, ref.x_probe[::-1], ref.v_center[::-1])
+        u = np.tile(u_line, (len(x), 1))
+        v = np.tile(v_line[:, None], (1, len(y)))
+
+        errors = ghia_centerline_errors(u, v, x, y, re=400)
+        assert errors["u_centerline_l2_percent"] < 1.0
+        assert errors["v_centerline_l2_percent"] < 1.0
+
+    def test_perturbed_field_reports_error(self):
+        x, y, _, _ = generate_cavity_mesh(nx=81, ny=81)
+        errors = ghia_centerline_errors(np.zeros((81, 81)), np.zeros((81, 81)), x, y, re=100)
+        assert errors["u_centerline_l2_percent"] > 50
+        assert errors["v_centerline_l2_percent"] > 50
+
+    def test_shape_validation(self):
+        x, y, _, _ = generate_cavity_mesh(nx=41, ny=41)
+        with pytest.raises(ValueError):
+            ghia_centerline_errors(np.zeros((40, 41)), np.zeros((41, 41)), x, y, re=100)

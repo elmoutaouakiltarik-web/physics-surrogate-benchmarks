@@ -2,19 +2,23 @@
 Physics-Informed Neural Networks (PINNs) for classical CFD benchmarks.
 
 Implements:
-  - PINNNet: Fully connected backbone with sin/tanh/gelu activations
+  - PINNNet: fully connected backbone with sin/tanh/gelu/swish activations
   - BurgersPINN: 1D viscous Burgers equation (u_t + u*u_x = nu*u_xx)
-  - NavierStokesPINN: 2D incompressible NS (steady-state, stream-function)
-  - UnsteadyNSPINN: 2D unsteady NS (u, v, p)(x, y, t)
   - RARSampler: Residual Adaptive Refinement for efficient training
 
-Training pipeline:
-  1. Adam (5000 epochs) - initial rapid convergence
-  2. L-BFGS (500 iter) - fine-tuning to minimum
-  3. RAR (optional) - adds points where residual is high
+Only the 1D Burgers solver is implemented; the 2D Navier-Stokes PINNs are not
+part of this release, and nothing in the repository claims otherwise.
 
-All residuals computed via automatic differentiation (torch.autograd.grad).
-No finite differences - true physics-informed training.
+Training pipeline:
+  1. Adam (library default 5000 epochs) - initial rapid convergence
+  2. L-BFGS (library default 500 iterations) - fine-tuning to the minimum
+  3. RAR (optional) - add candidate points where the residual is largest
+
+The published benchmark uses 10,000 Adam epochs followed by 3,000 L-BFGS
+iterations with RAR every 2,000 epochs; see ``scripts/run_benchmark_real.py``.
+
+All residuals are computed with automatic differentiation (torch.autograd.grad),
+so there are no finite-difference approximations in the loss.
 
 References:
   Raissi et al. "Physics-informed neural networks", JCP 2019
@@ -281,15 +285,26 @@ class BurgersPINN:
             loss.backward()
             return loss
 
-        lbfgs.step(closure)
-        final_loss = closure().item()
-        self.losses.append(final_loss)
+        if epochs_lbfgs > 0:
+            lbfgs.step(closure)
+            final_loss = closure().item()
+            self.losses.append(final_loss)
+        else:
+            final_loss = closure().item()
         elapsed = time.time() - start_time
         logger.info(f"  Burgers PINN complete. Final loss: {final_loss:.4e} [{elapsed:.1f}s]")
+        # Every value reported in the committed JSON comes from here; nothing is
+        # re-typed by hand, so the record cannot drift from the run.
         return {
             "final_loss": final_loss,
             "nu": self.nu,
             "n_colloc": n_colloc,
+            "n_colloc_final": len(x_c),
+            "n_ic": n_ic,
+            "n_bc": n_bc,
+            "epochs_adam": epochs_adam,
+            "epochs_lbfgs": epochs_lbfgs,
+            "n_params": sum(p.numel() for p in self.net.parameters()),
             "elapsed_time": elapsed,
             "model_type": "BurgersPINN",
         }
@@ -310,6 +325,6 @@ class BurgersPINN:
         logger.info(f"Saved PINN weights to {path}")
 
     def load_weights(self, path: str | Path):
-        """Load model weights."""
-        self.net.load_state_dict(torch.load(path, map_location=self.device))
+        """Load model weights (state dict only; no pickled objects are executed)."""
+        self.net.load_state_dict(torch.load(path, map_location=self.device, weights_only=True))
         logger.info(f"Loaded PINN weights from {path}")

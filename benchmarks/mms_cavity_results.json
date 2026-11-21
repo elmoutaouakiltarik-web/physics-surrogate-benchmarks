@@ -1,19 +1,25 @@
 {
   "case": "MMS_Cavity",
-  "method": "Method of Manufactured Solutions (Verification Only)",
+  "method": "Method of Manufactured Solutions (verification only)",
   "mesh": {
     "nx": 65,
     "ny": 65
   },
-  "note": "MMS is used to verify code correctness. R\u00b2 is not a validation metric.",
+  "perturbation": {
+    "type": "gaussian noise",
+    "sigma": 0.01,
+    "seed": 42
+  },
+  "field": "u = d(psi)/dy, v = -d(psi)/dx, psi = 16 x^2 (1-x)^2 y^2 (1-y)^2 (analytically divergence free, no-slip on all walls)",
+  "note": "Checks the error pipeline on a known field. This is NOT a model result.",
   "metrics": {
-    "l2_u_relative": 0.11522583645408155,
-    "l2_v_relative": 0.11791767512388614,
-    "l2_relative_mean": 0.11657175578898385,
-    "r2_u": 0.9867230066134529,
-    "r2_v": 0.9860954218933732,
-    "r2_mean": 0.9864092142534131,
-    "max_error_u": 0.039262377064363266,
-    "max_error_v": 0.038366555484593695
+    "l2_u_relative": 0.11539039189950226,
+    "l2_v_relative": 0.11565841969801491,
+    "l2_relative_mean": 0.11552440579875858,
+    "r2_u": 0.986685057457275,
+    "r2_v": 0.9866231299529535,
+    "r2_mean": 0.9866540937051143,
+    "max_error_u": 0.036484128252147835,
+    "max_error_v": 0.043891145848648366
   }
 }

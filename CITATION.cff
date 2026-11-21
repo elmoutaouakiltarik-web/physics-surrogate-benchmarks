@@ -6,17 +6,75 @@ authors:
   - family-names: "El Moutaouakil"
     given-names: "Tarik"
     email: "elmoutaouakiltarik-web@users.noreply.github.com"
+    website: "https://github.com/elmoutaouakiltarik-web"
 repository-code: "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks"
 url: "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks"
-abstract: "Reproducible benchmarks for Physics-Informed Neural Networks (PINNs) and Fourier Neural Operators (FNO) on classical CFD problems including lid-driven cavity and manufactured solution verification."
+abstract: >-
+  Small PyTorch implementations of two surrogate-model families - a physics-informed
+  neural network for the 1D viscous Burgers equation and a Fourier neural operator for
+  the periodic heat operator - each scored against a closed-form reference solution so
+  that the reported error is the error of the model alone. The repository also ships
+  the published Ghia, Ghia & Shin (1982) lid-driven-cavity profiles as benchmark data,
+  a divergence-free manufactured solution for metric verification, and tests that keep
+  the committed weights, result files and README numbers in agreement.
 keywords:
   - surrogate-modeling
   - physics-informed-neural-networks
-  - fourier-neural-operators
+  - fourier-neural-operator
   - cfd
   - computational-fluid-dynamics
-  - deep-learning
+  - verification-and-validation
   - benchmark
+  - pytorch
 license: MIT
-version: 0.1.0
-date-released: 2024-11-15
+version: 0.2.0
+date-released: 2026-11-21
+references:
+  - type: article
+    title: "Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations"
+    authors:
+      - family-names: "Raissi"
+        given-names: "Maziar"
+      - family-names: "Perdikaris"
+        given-names: "Paris"
+      - family-names: "Karniadakis"
+        given-names: "George Em"
+    journal: "Journal of Computational Physics"
+    volume: 378
+    start: 686
+    end: 707
+    year: 2019
+  - type: article
+    title: "Fourier Neural Operator for Parametric Partial Differential Equations"
+    authors:
+      - family-names: "Li"
+        given-names: "Zongyi"
+      - family-names: "Kovachki"
+        given-names: "Nikola"
+      - family-names: "Azizzadenesheli"
+        given-names: "Kamyar"
+      - family-names: "Liu"
+        given-names: "Burigede"
+      - family-names: "Bhattacharya"
+        given-names: "Kaushik"
+      - family-names: "Stuart"
+        given-names: "Andrew"
+      - family-names: "Anandkumar"
+        given-names: "Anima"
+    journal: "International Conference on Learning Representations (ICLR)"
+    year: 2021
+  - type: article
+    title: "High-Re Solutions for Incompressible Flow Using the Navier-Stokes Equations and a Multigrid Method"
+    authors:
+      - family-names: "Ghia"
+        given-names: "U."
+      - family-names: "Ghia"
+        given-names: "K. N."
+      - family-names: "Shin"
+        given-names: "C. T."
+    journal: "Journal of Computational Physics"
+    volume: 48
+    issue: 3
+    start: 387
+    end: 411
+    year: 1982

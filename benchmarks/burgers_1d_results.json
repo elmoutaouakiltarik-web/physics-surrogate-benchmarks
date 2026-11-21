@@ -25,12 +25,14 @@
   },
   "training": {
     "n_colloc": 10000,
-    "n_ic": 100,
-    "n_bc": 100,
+    "n_colloc_final": 14000,
+    "n_ic": 256,
+    "n_bc": 256,
     "epochs_adam": 10000,
     "epochs_lbfgs": 3000,
     "use_rar": true,
-    "rar_interval": 2000
+    "rar_interval": 2000,
+    "rar_points_per_interval": 1000
   },
   "system": {
     "platform": "Windows-10-10.0.26200-SP0",
@@ -45,12 +47,41 @@
     "test_time": 0.5
   },
   "validation": {
-    "reference": "Cole-Hopf exact solution",
+    "reference": "Cole-Hopf exact solution (closed form, no solver error)",
     "n_test_points": 200,
-    "l2_relative_error": 0.025395229860477316,
+    "t": 0.5,
+    "l2_relative_error": 0.025395229860480144,
     "max_absolute_error": 0.16735051849498928,
-    "r2_score": 0.9993550823003334
+    "r2_score": 0.9993550823003334,
+    "by_time": {
+      "0.25": {
+        "l2_relative_error": 0.03646632396406647,
+        "max_absolute_error": 0.15072363999321625,
+        "r2_score": 0.9986702072165478
+      },
+      "0.50": {
+        "l2_relative_error": 0.025395229860480144,
+        "max_absolute_error": 0.16735051849498928,
+        "r2_score": 0.9993550823003334
+      },
+      "0.75": {
+        "l2_relative_error": 0.09614027929543681,
+        "max_absolute_error": 0.6223407587020527,
+        "r2_score": 0.9907570466969956
+      },
+      "1.00": {
+        "l2_relative_error": 0.15104151531745535,
+        "max_absolute_error": 0.7738131937053665,
+        "r2_score": 0.9771864606506075
+      }
+    },
+    "note": "the metric above is at t=0.5 only; by_time shows how it degrades towards t=1"
   },
   "weights_file": "weights/burgers_pinn.pt",
-  "weights_size_mb": 0.05263233184814453
+  "weights_size_mb": 0.0552,
+  "model": {
+    "class": "BurgersPINN",
+    "params": 12737
+  },
+  "rescored_from_weights": true
 }

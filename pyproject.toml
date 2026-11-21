@@ -1,26 +1,36 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "physics-surrogate-benchmarks"
-version = "0.1.0"
-description = "Reproducible benchmark of Physics-Informed Neural Networks (PINNs) and Fourier Neural Operators (FNO) on classical CFD problems"
+version = "0.2.0"
+description = "Reproducible PINN and Fourier Neural Operator benchmarks scored against exact analytical solutions"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
     { name = "Tarik El Moutaouakil", email = "elmoutaouakiltarik-web@users.noreply.github.com" }
 ]
 requires-python = ">=3.10"
-keywords = ["surrogate-modeling", "physics-informed", "neural-networks", "cfd", "benchmark"]
+keywords = [
+    "surrogate-modeling",
+    "physics-informed",
+    "neural-networks",
+    "fourier-neural-operator",
+    "cfd",
+    "benchmark",
+    "verification",
+]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
 ]
 dependencies = [
     "numpy>=1.21.0",
@@ -33,20 +43,23 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "pytest-cov>=3.0",
-    "ruff>=0.1.0",
-]
-gpu = [
-    "torch[cuda11]>=2.0.0",
+    "ruff>=0.6.0",
+    "build>=1.0.0",
 ]
 
 [project.urls]
-Repository = "https://github.com/tarik-el-m/physics-surrogate-benchmarks"
-Documentation = "https://github.com/tarik-el-m/physics-surrogate-benchmarks#readme"
-"Bug Tracker" = "https://github.com/tarik-el-m/physics-surrogate-benchmarks/issues"
+Repository = "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks"
+Documentation = "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks#readme"
+"Bug Tracker" = "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks/issues"
+"Benchmark protocol" = "https://github.com/elmoutaouakiltarik-web/physics-surrogate-benchmarks/blob/main/BENCHMARKS.md"
 
 [tool.setuptools]
-packages = ["physics_surrogates"]
 package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["physics_surrogates*"]
 
 [tool.setuptools.package-data]
 physics_surrogates = ["py.typed"]
@@ -73,18 +86,21 @@ exclude_lines = [
 ]
 precision = 2
 
-
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts add src/ to sys.path before importing the package.
+"scripts/*.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false  # Relaxed for research code
+disallow_untyped_defs = false
 ignore_missing_imports = true

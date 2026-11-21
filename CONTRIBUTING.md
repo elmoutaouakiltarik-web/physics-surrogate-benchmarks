@@ -1,187 +1,110 @@
-# Contributing to Physics Surrogate Benchmarks
+# Contributing
 
-Thank you for your interest in contributing! This document outlines the process.
+Thanks for taking the time to improve this repository. It is a small benchmark
+project, so the bar is less about volume of code and more about whether a number
+can be trusted.
 
-## Getting Started
+## The one rule that matters
 
-1. **Fork the repository** on GitHub
-2. **Clone your fork** locally:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/physics-surrogate-benchmarks.git
-   cd physics-surrogate-benchmarks
-   ```
+**Every reported number must come from a run whose configuration is recorded.**
 
-3. **Create a virtual environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+Concretely:
 
-4. **Install development dependencies**:
-   ```bash
-   pip install -e ".[dev]"
-   ```
+- A metric lives in `benchmarks/*.json` first. The README table is a copy of it.
+- Configuration values in the JSON are produced by the training code, never typed
+  by hand (see `BurgersPINN.train`, which returns the point counts it actually used).
+- If you change a model or a dataset, re-run the benchmark and commit the new JSON
+  together with the code change. Do not leave a README table describing a previous run.
+- If a result is a smoke test, a synthetic check or a known-weak case, label it.
 
-## Development Workflow
+`tests/test_artifacts.py` enforces the mechanical part of this: it reloads the
+committed weights, recomputes the published error and fails if the JSON and the
+weights disagree.
 
-### Code Style
-
-We follow PEP 8 with the following tools:
+## Setup
 
 ```bash
-# Format code
-black src/ tests/
-
-# Lint
-ruff check src/ tests/
-
-# Type hints
-mypy src/physics_surrogates --ignore-missing-imports
+git clone https://github.com/YOUR-USERNAME/physics-surrogate-benchmarks.git
+cd physics-surrogate-benchmarks
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # skip if you have CUDA
+pip install -e ".[dev]"
+pre-commit install                                  # optional but recommended
+pytest -q
 ```
 
-### Writing Tests
-
-All new features must include tests in `tests/`:
-
-```python
-import pytest
-from physics_surrogates.models import BurgersPINN
-
-def test_burgers_train():
-    """Test PINN training."""
-    pinn = BurgersPINN(device="cpu")
-    metrics = pinn.train(epochs_adam=10, epochs_lbfgs=1)
-    assert "final_loss" in metrics
-    assert metrics["final_loss"] > 0
-```
-
-Run tests locally:
+## Before opening a pull request
 
 ```bash
-pytest tests/ -v --cov=src/physics_surrogates
+ruff check src tests scripts     # lint
+pytest tests/ -q                 # unit + artifact-consistency tests
 ```
 
-### Committing Changes
+If you touched a benchmark, also run the entry point you changed and include the
+regenerated JSON (and the figure, if it depends on the changed artifact):
 
-Use conventional commits:
-
-```
-feat(pinns): add RAR sampling to Burgers PINN
-fix(ghia): correct Ghia reference data for Re=400
-docs: update cavity benchmark README
-test: add MMS verification tests
+```bash
+python scripts/run_benchmark_real.py        # ~27 min CPU, Burgers PINN
+python scripts/benchmark_fno_heat.py        # ~4 min CPU, FNO heat operator
+python scripts/make_figures.py              # figures from committed artifacts
 ```
 
-Format: `<type>(<scope>): <message>`
-
-Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `ci`, `chore`
-
-### Pull Request Process
-
-1. **Push your branch** to your fork
-2. **Create a PR** with a clear title and description
-3. **Link any related issues**: "Fixes #123"
-4. **Wait for CI/CD** — all tests must pass
-5. **Address review comments**
-6. **Merge** once approved
-
-## Contribution Guidelines
+## Contribution guidelines
 
 ### Models
 
-- Follow the PINN/FNO/DeepONet interface
-- Include docstrings with math notation
-- Add unit tests for forward/backward pass
-- Provide a minimal example in docstring
+- Keep the interface (`train`, `predict`, `save_weights`, `load_weights`) familiar.
+- Document the equation, domain, initial and boundary conditions in the module docstring.
+- Add a test for the forward/backward path and at least one exact property
+  (boundary condition, symmetry, divergence, convergence) rather than only shapes.
+
+### Reference solutions
+
+A reference must be independent of the model being scored. If you add one, add a
+cross-check against a second method, as `tests/test_reference_solutions.py` does
+for the Cole-Hopf quadrature versus a pseudo-spectral solve.
 
 ### Datasets
 
-- Reference published benchmarks (Ghia, NASA, etc.)
-- Include data loading + validation
-- Test against known values (R², RMSE)
-- Document domain, BC, IC clearly
+- Cite the published source and keep the published probe locations.
+- Transcribe values, do not smooth or interpolate them.
+- Record known misprints in the data module instead of silently correcting them.
+- Never invent reference data to fill a missing Reynolds number; raise instead.
 
-### Benchmarks
+### Figures
 
-- Report wall-clock time on standard hardware
-- Compare multiple models fairly
-- Include reproducibility info (seed, device, version)
-- Plot results with matplotlib
+`docs/img/*.png` are generated, not hand-edited. `scripts/make_figures.py` owns the
+model and reference figures; `scripts/run_benchmark_real.py --mms-only` owns the MMS
+verification figure. A figure that cannot be regenerated from committed artifacts
+should not be in the README.
 
-## Reporting Issues
+## Commit style
 
-Use GitHub Issues for:
-- **Bug reports**: Include Python version, PyTorch version, error message
-- **Feature requests**: Explain motivation and use case
-- **Questions**: Check closed issues first
+Conventional commits, one logical change per commit:
 
-Template:
-
-```markdown
-## Bug Report
-
-**Description:**
-Brief description of the issue.
-
-**Steps to reproduce:**
-1. ...
-2. ...
-
-**Expected behavior:**
-What should happen.
-
-**Actual behavior:**
-What actually happens.
-
-**Environment:**
-- Python: 3.10
-- PyTorch: 2.0
-- OS: Ubuntu 22.04
-- Device: CUDA 11.8
+```
+feat(fno): report the epoch-mean training loss
+fix(ghia): correct the Re=1000 centreline tables
+docs: rewrite the reproduction section
+test: cross-check Cole-Hopf against a spectral solver
+ci: verify the wheel contains every subpackage
 ```
 
-## Code Review Checklist
+Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `ci`, `chore`.
 
-Before submitting a PR, ensure:
+## Pull request checklist
 
-- [ ] Code follows `black` + `ruff` style
-- [ ] All tests pass: `pytest tests/ -v`
-- [ ] Type hints added where applicable
-- [ ] Docstrings present (models especially)
-- [ ] No secrets (keys, paths, passwords)
-- [ ] Benchmarks run and report realistic metrics
-- [ ] README/docs updated if needed
+- [ ] `ruff check src tests scripts` passes
+- [ ] `pytest tests/ -q` passes
+- [ ] Benchmark JSON regenerated if a model or dataset changed
+- [ ] README numbers still match `benchmarks/*.json`
+- [ ] No secrets, credentials, personal paths or proprietary code
+- [ ] New claims about a metric are reproducible from a command in the README
 
-## Setting Up Pre-Commit Hooks
+## Reporting issues
 
-Optional but recommended:
+Include what you ran, the Python/PyTorch versions, the platform, and the full error.
+For a numerical disagreement, say which reference and which tolerance you expected.
 
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-Then configure `.pre-commit-config.yaml`:
-
-```yaml
-repos:
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
-    hooks:
-      - id: black
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.260
-    hooks:
-      - id: ruff
-```
-
-## Questions?
-
-- Open a GitHub Discussion
-- Email: tarik@example.com
-- Check existing issues first
-
----
-
-**Thank you for contributing!** Every improvement helps the community.
+Questions and proposals are welcome in GitHub Issues; benchmarks are often more
+useful when someone points out that a comparison is too easy.

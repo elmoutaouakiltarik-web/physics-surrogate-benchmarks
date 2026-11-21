@@ -7,13 +7,20 @@
   "epochs": 300,
   "seed": 0,
   "params": 74209,
-  "train_time_s": 252.2,
-  "final_train_rel_l2": 0.0003681067028082907,
+  "train_time_s": 282.8,
+  "final_train_rel_l2": 0.0003743473389185965,
   "test_rel_l2_by_grid": {
     "64": 0.0004934951510552256,
     "128": 0.0005050421811079598,
     "256": 0.0005132561417231258
   },
   "reference": "exact Fourier-space solution (no solver error)",
-  "test_set": "200 unseen random initial conditions (seed 1234)"
+  "test_set": "200 unseen random initial conditions (seed 1234)",
+  "system": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 126 Stepping 5, GenuineIntel",
+    "python": "3.11.9",
+    "torch": "2.12.0+cpu",
+    "device": "cpu"
+  }
 }
