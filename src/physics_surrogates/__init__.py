@@ -5,7 +5,7 @@ Small, auditable PyTorch implementations of Physics-Informed Neural Networks
 reference solution so the reported error belongs to the model alone.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Tarik El Moutaouakil"
 
 from . import datasets, models, reference

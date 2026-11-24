@@ -233,6 +233,36 @@ def fig_ghia() -> Path:
     return path
 
 
+def fig_speed() -> Path | None:
+    """Accuracy vs wall time: solver time-step sweep against the FNO, per grid."""
+    src = RESULTS / "speed_burgers_results.json"
+    if not src.exists():
+        return None
+    data = json.loads(src.read_text())
+    n_test = 200
+    fig, ax = plt.subplots(figsize=(6.6, 4.1), constrained_layout=True)
+    for (grid, entry), color in zip(data["by_grid"].items(), (BLUE, GREEN, RED), strict=True):
+        pts = [s for s in entry["solver_sweep"] if s["stable"] and s["rel_l2"] > 0]
+        ax.plot([1e3 * s["batch_s"] / n_test for s in pts], [s["rel_l2"] for s in pts],
+                "o-", color=color, ms=4, lw=1.2, label=f"solver, {grid} points (dt sweep)")
+        fno = entry["fno"]
+        ax.plot(1e3 * fno["batch_s"] / n_test, fno["rel_l2"], "*", color=color, ms=13,
+                mec="black", mew=0.6, label=f"FNO, {grid} points")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("wall time per query, ms (batch of 200, one CPU thread)")
+    ax.set_ylabel("relative L2 vs dt = 1e-3 reference")
+    ax.set_xticks([0.2, 0.5, 1, 2, 5])
+    ax.xaxis.set_major_formatter(plt.FormatStrFormatter("%g"))
+    ax.xaxis.set_minor_formatter(plt.NullFormatter())
+    ax.set_title("Nonlinear Burgers: FNO vs every stable solver time step")
+    ax.legend(fontsize=7.5, ncol=2, loc="lower left")
+    path = IMG / "speed_accuracy_burgers.png"
+    fig.savefig(path)
+    plt.close(fig)
+    return path
+
+
 def main() -> None:
     IMG.mkdir(parents=True, exist_ok=True)
     _style()
@@ -246,6 +276,9 @@ def main() -> None:
         )
 
     written = [fig_burgers(), fig_fno_prediction(), fig_fno_resolution(), fig_ghia()]
+    speed = fig_speed()
+    if speed is not None:
+        written.append(speed)
     for path in written:
         print(f"wrote {path.relative_to(ROOT)}")
 

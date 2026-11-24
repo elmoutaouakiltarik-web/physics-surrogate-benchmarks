@@ -31,6 +31,23 @@
         "std": 0.0002634499632335234
       }
     },
+    "fno_by_grid_per_seed": {
+      "64": [
+        0.006914357453545533,
+        0.006765740046386982,
+        0.00623757558852535
+      ],
+      "128": [
+        0.006882273836660524,
+        0.006720777603556963,
+        0.006249849610073124
+      ],
+      "256": [
+        0.006875844894673766,
+        0.006709399979333009,
+        0.006252670085686387
+      ]
+    },
     "mlp_train_grid": {
       "mean": 0.06742871363273717,
       "std": 0.0018685214195851175
@@ -51,9 +68,22 @@
       "linear_heat_theory_ignoring_advection": 2.172943081018373
     }
   },
+  "weights_file": "weights/fno_burgers.pt (seed 0)",
   "train_time_s_per_seed": {
-    "fno": 196.5,
-    "mlp": 25.3
+    "fno": 165.5,
+    "mlp": 22.5
+  },
+  "train_time_s_by_seed": {
+    "fno": [
+      209.7,
+      165.5,
+      153.4
+    ],
+    "mlp": [
+      23.4,
+      22.5,
+      17.3
+    ]
   },
   "reference": "pseudo-spectral IFRK4 solver (numerical); resolution check: grid-64 vs grid-256 reference differ by ~2e-3 relative (max-norm)"
 }

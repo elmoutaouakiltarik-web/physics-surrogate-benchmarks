@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.0 — 2026-11-24
+
+### Added
+
+- **Nonlinear operator benchmark.** FNO vs a dense MLP on the periodic viscous Burgers
+  operator (ν = 0.02, T = 0.5), 3 seeds, scored against a pseudo-spectral IFRK4 solver that
+  `tests/test_solvers.py` verifies (time and space convergence, mean conservation, energy
+  decay, linear limit). Weights of seed 0 are committed as `weights/fno_burgers.pt`, and the
+  result file keeps the per-seed errors and training times.
+- **Accuracy-matched speed benchmark** (`scripts/benchmark_speed_burgers.py`). The solver
+  is swept over 12 time steps and timed against the FNO on one CPU thread. Measured: the FNO
+  is 4-6× faster per query, the cheapest stable solver step is already about 260-1,150×
+  more accurate, and training pays back after 71,000-312,000 queries.
+- Figure `docs/img/speed_accuracy_burgers.png` (error vs wall time).
+- Two artifact-consistency tests: the committed Burgers weights reproduce the published
+  seed-0 errors, and the speed result really is the cheapest accurate-enough solver step.
+
+### Corrected
+
+- README equation for the Burgers operator rendered with a broken line break.
+- Training time is reported as the median over seeds (raw times kept), so one wall-clock
+  outlier such as a machine sleeping cannot inflate the reported cost.
+
 ## 0.2.0 — 2026-11-21
 
 ### Corrected

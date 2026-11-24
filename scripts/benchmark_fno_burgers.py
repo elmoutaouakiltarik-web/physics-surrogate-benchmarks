@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """FNO1d vs dense MLP on nonlinear viscous Burgers: u(., 0) -> u(., T), zero-shot to finer grids.
 
-Writes benchmarks/fno_burgers_results.json (mean and std over seeds). CPU only.
+Writes benchmarks/fno_burgers_results.json (mean and std over seeds) and the seed-0 FNO
+weights to weights/fno_burgers.pt (used by the speed benchmark). CPU only.
 Reference = pseudo-spectral solver (numerical, validated in tests/test_solvers.py).
 """
 
@@ -26,13 +27,14 @@ from physics_surrogates.models.burgers_operator import (  # noqa: E402
     make_dataset,
     train_operator,
 )
-from physics_surrogates.models.fno import heat_solution, relative_l2  # noqa: E402
+from physics_surrogates.models.fno import heat_solution, relative_l2, save_fno_weights  # noqa: E402
 
 NU, T, AMP = 0.02, 0.5, 2.0
 N_TRAIN, TRAIN_GRID, EPOCHS = 1000, 64, 200
 SEEDS = (0, 1, 2)
 TEST_GRIDS = (64, 128, 256)
 TEST_SEED, N_TEST = 1234, 200
+WEIGHTS = ROOT / "weights" / "fno_burgers.pt"
 
 
 def mean_std(values: list[float]) -> dict[str, float]:
@@ -55,6 +57,8 @@ def main() -> None:
         times["fno"].append(time.perf_counter() - t0)
         for n in TEST_GRIDS:
             fno_runs[n].append(evaluate_model(fno, *test[n]))
+        if seed == SEEDS[0]:
+            save_fno_weights(fno, WEIGHTS)
         torch.manual_seed(seed)
         mlp = MLPOperator(TRAIN_GRID, hidden=256, layers=3)
         t0 = time.perf_counter()
@@ -73,6 +77,7 @@ def main() -> None:
         "params": {"fno": count_params(build_fno()), "mlp": count_params(MLPOperator(TRAIN_GRID))},
         "test_rel_l2": {
             "fno_by_grid": {str(n): mean_std(v) for n, v in fno_runs.items()},
+            "fno_by_grid_per_seed": {str(n): [float(x) for x in v] for n, v in fno_runs.items()},
             "mlp_train_grid": mean_std(mlp_runs),
             "mlp_other_grids": "not applicable (fixed input size)",
         },
@@ -85,7 +90,11 @@ def main() -> None:
             }
             for n in TEST_GRIDS
         },
-        "train_time_s_per_seed": {k: round(float(np.mean(v)), 1) for k, v in times.items()},
+        "weights_file": f"weights/{WEIGHTS.name} (seed {SEEDS[0]})",
+        # Median, not mean: one wall-clock outlier (machine sleep, background load) must not
+        # move the reported cost. The raw per-seed times are kept next to it.
+        "train_time_s_per_seed": {k: round(float(np.median(v)), 1) for k, v in times.items()},
+        "train_time_s_by_seed": {k: [round(float(x), 1) for x in v] for k, v in times.items()},
         "reference": "pseudo-spectral IFRK4 solver (numerical); resolution check: grid-64 vs grid-256 "
                      "reference differ by ~2e-3 relative (max-norm)",
     }

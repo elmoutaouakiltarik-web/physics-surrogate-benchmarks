@@ -94,3 +94,32 @@ def test_fno_weights_reproduce_the_recorded_errors():
         fields = random_periodic_fields(200, int(grid), seed=1234)
         measured = evaluate(model, fields, data["nu"], data["T"])
         assert measured == pytest.approx(expected, rel=1e-3, abs=1e-9), grid
+
+
+def test_fno_burgers_weights_reproduce_the_seed0_errors():
+    """The shipped Burgers FNO is the seed-0 model behind the published table."""
+    from physics_surrogates.models.burgers_operator import evaluate_model, make_dataset
+
+    data = _results("fno_burgers_results.json")
+    model = load_fno_weights(WEIGHTS / "fno_burgers.pt")
+    per_seed = data["test_rel_l2"]["fno_by_grid_per_seed"]
+    for grid in ("64", "256"):
+        u0, ut = make_dataset(200, int(grid), data["nu"], data["T"], 1234, data["ic_amplitude"])
+        assert evaluate_model(model, u0, ut) == pytest.approx(per_seed[grid][0], rel=1e-3), grid
+
+
+def test_speed_benchmark_is_accuracy_matched():
+    """Every reported speed-up compares the FNO with a solver setting at least as accurate."""
+    speed = _results("speed_burgers_results.json")
+    per_seed = _results("fno_burgers_results.json")["test_rel_l2"]["fno_by_grid_per_seed"]
+    assert set(speed["by_grid"]) == {"64", "128", "256"}
+    for grid, entry in speed["by_grid"].items():
+        fno_err = entry["fno"]["rel_l2"]
+        assert fno_err == pytest.approx(per_seed[grid][0], rel=1e-3), grid
+        best = entry["accuracy_matched_solver"]
+        if best is not None:
+            assert best["rel_l2"] <= fno_err
+            cheaper_ok = [s for s in entry["solver_sweep"]
+                          if s["rel_l2"] <= fno_err and s["batch_s"] < best["batch_s"]]
+            assert not cheaper_ok, grid
+            assert entry["speedup_batch"] == pytest.approx(best["batch_s"] / entry["fno"]["batch_s"])

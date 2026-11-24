@@ -14,6 +14,7 @@ reported error is the error of the model and not the error of a solver:
 | **PINN** | 1D viscous Burgers, ν = 0.01/π | Cole–Hopf exact solution | rel. L2 **2.54e-2**, R² **0.99936** at t = 0.5 |
 | **FNO** (Fourier Neural Operator) | periodic heat operator u(·,0) → u(·,T) | exact Fourier-space solution | rel. L2 **4.93e-4** on the training grid, **5.13e-4** zero-shot on a 4× finer grid |
 | **FNO vs MLP** | *nonlinear* periodic Burgers operator (ν = 0.02, T = 0.5) | validated pseudo-spectral solver (numerical) | FNO rel. L2 **6.6e-3 ± 0.3e-3** (3 seeds), unchanged zero-shot on a 4× finer grid; dense MLP **6.7e-2** |
+| **Speed, accuracy-matched** | same Burgers operator | solver swept over 12 time steps, one CPU thread | FNO **4-6× faster** per query; the cheapest *stable* solver step is already ~260-1,150× more accurate; training pays back after **71k-312k** queries |
 
 Everything runs on a laptop CPU. The committed runs were produced on an Intel Ice Lake
 mobile CPU, Windows 10, Python 3.11.9, PyTorch 2.12.0+cpu; raw outputs are in
@@ -146,9 +147,7 @@ verification artifact, **not** a model result, and it is never quoted in the tab
 
 The heat task is linear. Here the operator is nonlinear (shock-forming advection):
 
-$$u_t + u\,u_x = 
-u\,u_{xx}\ 	ext{on } [0,1)\ 	ext{periodic},\quad 
-u = 0.02,\ T = 0.5,$$
+$$u_t + u\,u_x = \nu\,u_{xx}\ \text{on } [0,1)\ \text{periodic},\quad \nu = 0.02,\ T = 0.5,$$
 
 with initial conditions of amplitude 2. There is no closed form for random initial
 conditions, so the reference is a pseudo-spectral solver (`src/physics_surrogates/solvers.py`:
@@ -183,6 +182,41 @@ MLP is a simple baseline and was not tuned. Resolution invariance is shown for f
 only; this does not cover non-periodic domains, fronts sharper than the 64-point grid can
 resolve, or 2D/3D flows.
 
+## 6. Is the surrogate actually cheaper? Accuracy-matched timing
+
+A speed-up quoted against a solver at its finest setting says little. `scripts/benchmark_speed_burgers.py`
+sweeps the solver time step (12 values, dense near the stability limit), scores every setting
+exactly like the FNO on the same 200 unseen initial conditions, keeps the cheapest step that is
+at least as accurate as the FNO, and times both on **one CPU thread** (median of repeats after a
+warm-up). FNO weights: seed 0 from section 5.
+
+| Grid | FNO error | FNO ms/query | Cheapest stable solver step | Its error | Solver ms/query | Speed-up (batch 200) | Speed-up (single query) |
+|---|---|---|---|---|---|---|---|
+| 64 | 6.9e-3 | 0.17 | dt = 6e-3 | 2.6e-5 | 0.71 | 4.2× | 3.3× |
+| 128 | 6.9e-3 | 0.27 | dt = 5e-3 | 6.0e-6 | 1.54 | 5.6× | 4.2× |
+| 256 | 6.9e-3 | 0.52 | dt = 5e-3 | 6.1e-6 | 2.90 | 5.5× | 4.6× |
+
+![Error vs wall time: solver time-step sweep and FNO](docs/img/speed_accuracy_burgers.png)
+
+What this shows, read plainly:
+
+- **The FNO is 4-6× faster per query**, not orders of magnitude. The single-query gain is
+  smaller because a forward pass has a fixed overhead of about 4 ms.
+- **The solver cannot be made as inaccurate as the FNO.** The explicit scheme becomes unstable
+  between dt = 6e-3 and 7e-3 (64 points) or 5e-3 and 6e-3 (128 and 256 points); its cheapest
+  stable step is already roughly 260-1,150× more accurate than the surrogate. The speed-up is bought
+  with that accuracy, not given for free.
+- **Training has to be paid back.** Training (166 s) plus generating the 1,000 training pairs
+  (4 s) is recovered after about 71,000 queries at 256 points and 312,000 at 64 points.
+
+**Limits.** One laptop CPU (Intel Core i7-1065G7, 4 cores, one used), PyTorch 2.12 CPU build, no GPU. The solver
+is an explicit fixed-step scheme; an implicit or adaptive-step solver was not measured and would
+likely narrow the gap further. Batch timing uses 200 queries; larger batches favour the FNO.
+
+```bash
+python scripts/benchmark_speed_burgers.py   # a few minutes on CPU, needs weights/fno_burgers.pt
+```
+
 ## Reproducibility
 
 - **Seeds.** Sections 1-4 are one seeded run per number: treat the third significant digit
@@ -196,7 +230,7 @@ resolve, or 2D/3D flows.
   from the committed artifacts, with no training.
 
 ```bash
-pytest -q        # 82 tests: models, datasets, solvers, reference cross-checks, artifact consistency
+pytest -q        # 84 tests: models, datasets, solvers, reference cross-checks, artifact consistency
 ruff check src tests scripts
 ```
 
@@ -214,6 +248,7 @@ scripts/
   run_benchmark_real.py    Burgers PINN + MMS check (single canonical entry point)
   benchmark_fno_heat.py    FNO heat operator
   benchmark_fno_burgers.py FNO vs MLP on nonlinear Burgers (3 seeds)
+  benchmark_speed_burgers.py accuracy-matched timing: FNO vs the solver it imitates
   make_figures.py          all figures from committed artifacts
 benchmarks/                JSON results (committed)
 weights/                   trained weights (committed)
